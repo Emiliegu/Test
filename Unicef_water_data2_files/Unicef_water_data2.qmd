@@ -1,0 +1,116 @@
+---
+title: "Water and Life Expectancy (Unicef)"
+author: "Emilie GU"
+format: html
+execute:
+  echo: false
+  warning: false
+  message: false
+editor: visual
+---
+
+# **Water, the source of life ?**
+
+## **Accessibility to clean drinking water sources could improve life expectancy in developing countries**
+
+-   Developing countries in the South have less proportion of the population using clean water sources compared to developed countries in the North.
+
+```{r Map}
+
+library(tidyverse)
+library(ggplot2)
+library(maps)
+library(janitor)
+
+unicef_indicator_1final <- read_csv2("~/Desktop/unicef_indicator_1final.csv") %>%
+  clean_names()
+unicef_metadata_final <- read_csv2("~/Desktop/unicef_metadata_final.csv")
+
+#map visualisation
+Improved_water_2020 <- unicef_indicator_1final %>% 
+  filter(year == 2020)
+names(unicef_indicator_1final)[7] ="obs_value"
+
+map_world <- map_data("world")
+map_water_2020 <- full_join(map_world, Improved_water_2020, by = c("region" = "country"))
+
+ggplot(data = map_water_2020) +
+  aes(x = long, y = lat, group = group, fill = obs_value_percent) +
+  geom_polygon() +
+  scale_fill_gradient(low = "lightblue", high = "darkblue", na.value = "lightgrey") +
+  labs(
+    title = "Proportion of the population using improved drinking water source in 2020",
+    subtitle = "Countries in grey have no data collected",
+    x = "Longitude",
+    y = "Latitude",
+    fill = "obs value (%) in 2020"
+  ) +
+  theme_classic()+
+  theme(plot.title = element_text(size=13, face = "bold"))
+```
+
+-   Usage of clean water sources can explain **63%** of changes in life expectancy. More precisely, the higher the proportion of the population using of improved drinking water sources, the longer the life expectancy for a country's population.
+
+```{r Scatter plot}
+#scatter plot with regression line
+Life_expectancy <- full_join(unicef_indicator_1final, unicef_metadata_final, by = c("year" = "year", "country"="country"))
+Life_expectancy <- Life_expectancy[,-c(2,3,4,8,9,10,11,12,13,14,15,16,17,19)]
+Life_expectancy <- na.omit(Life_expectancy)
+
+x <- Life_expectancy$obs_value
+y <- Life_expectancy$`Life expectancy at birth, total (years)`
+plot(Life_expectancy$obs_value, Life_expectancy$`Life expectancy at birth, total (years)`, 
+     main = 'Regression life expectation and proportion of population using
+     improved drinking water sources', cex.main=1,
+     xlab = 'Obs value (%)', ylab = 'Life expectancy at birth (years)', col="lightblue",cex=0.5)
+abline (lm (y~ x, data = Life_expectancy), col= "darkblue") 
+
+```
+
+-   An improvement of 7% on average since 2000 but still not enough !
+
+```{r Time series}
+
+#Time-series chart
+MeanObsvalue<-unicef_indicator_1final%>%
+  group_by(year) %>%
+  summarise(m_obsvalue = mean(obs_value))
+
+ggplot(data = MeanObsvalue) +
+  aes(x = year, y = m_obsvalue, color = m_obsvalue) +
+  geom_line() +
+  labs(
+    x = "Year (from 2000 to 2020)",
+    y = "Average Obs value in the world",
+    title = "The average proportion of population using improved drinking water sources 
+over the years."
+  ) +
+  theme_light()+
+  theme(plot.title = element_text(size=13, face = "bold", hjust = 0.5))
+```
+
+-   The average life expectancy is also lower in developing countries in comparison to developed countries.
+
+```{r Bar chart, echo = FALSE}
+#bar chart
+MeanLifeExp <- Life_expectancy %>% 
+  group_by(country) %>% 
+  summarise(m_lifeExp = mean(`Life expectancy at birth, total (years)`))
+  MeanLifeExp <-arrange(MeanLifeExp, m_lifeExp)
+  MeanLifeExp <-MeanLifeExp [c(1, 124), ]
+  
+ggplot (data = MeanLifeExp) +
+  aes(x = country, y = m_lifeExp, fill = country) +
+  geom_bar(stat="identity")+
+  scale_fill_manual(values=c("lightblue",
+                             "darkblue"))+
+labs(
+    x = "Country : lowest vs highest",
+    y = "Average life expectancy",
+    title = "Country with the lowest vs highest life expectancy at birth.",
+    color="lightblue"
+  ) +
+  geom_hline(yintercept=72.3)+
+  theme_light()+
+  theme(plot.title = element_text(size=13, face = "bold", hjust = 0.5))
+```
